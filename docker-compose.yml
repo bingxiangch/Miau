@@ -1,0 +1,72 @@
+version: "3"
+
+services:
+  mongodb:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - db_data:/var/lib/mongo
+    environment:
+      MONGO_INITDB_DATABASE: appdb
+    ports:
+      - "27017:27017"
+    networks:
+      - backend
+    
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - backend
+
+  rapid-runner-rabbit:
+     image: rabbitmq:3-management
+     hostname: "rapid-runner-rabbit"
+     environment:
+       RABBITMQ_DEFAULT_VHOST: "/"
+     ports:
+       - "15672:15672"
+       - "5672:5672"
+     expose:
+       - 5672
+       - 15672
+     networks:
+       - backend
+
+
+  server-a:
+    build:
+      dockerfile: Dockerfile
+      context: ./backend/server-a
+    image: "group4/node:10"
+    depends_on:
+       -  rapid-runner-rabbit
+       -  mongodb
+    command: ["./utils/wait-for-it.sh", "rapid-runner-rabbit:5672", "--",  "npm", "start"]
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+             
+  server-b:
+    build:
+      dockerfile: Dockerfile
+      context: ./backend/server-b
+    image: "group4a/node:10"
+    depends_on:
+      -  rapid-runner-rabbit
+      -  mongodb
+    command: ["./utils/wait-for-it.sh", "rapid-runner-rabbit:5672", "--",  "npm", "start"]
+    ports:
+      - "8082:8082"
+    networks:
+      - backend
+
+
+
+networks:
+  backend:
+
+volumes:
+  db_data: {}
